@@ -1033,6 +1033,118 @@ class ParallelHyperparameterTuner:
                                            self.data_dict, gpu_id)
                 gpu_futures.append(future)
 
+    def _print_summary(self, results, wall_clock_time):
+        """Print summary statistics."""
+        if not results:
+            print("No results to display!")
+            return
+        
+        results_df = pd.DataFrame(results)
+        results_df = results_df.sort_values('val_mse')
+        
+        print(f"\n{'='*70}")
+        print("TUNING COMPLETED")
+        print(f"{'='*70}")
+        print(f"\nTop 5 Models:")
+        print(results_df[['job_id', 'val_mse', 'val_mae', 'val_r2', 
+                         'test_mse', 'test_mae', 'test_r2', 'duration_seconds']].head())
+        
+        # Timing statistics
+        print(f"\n{'='*70}")
+        print("PARALLEL COMPUTING TIMING STATISTICS")
+        print(f"{'='*70}")
+        print(f"Total jobs completed: {len(results)}")
+        print(f"Total training time (sum of all jobs): {results_df['duration_seconds'].sum():.2f} seconds")
+        print(f"Average training time per job: {results_df['duration_seconds'].mean():.2f} seconds")
+        print(f"Median training time per job: {results_df['duration_seconds'].median():.2f} seconds")
+        print(f"Min training time: {results_df['duration_seconds'].min():.2f} seconds")
+        print(f"Max training time: {results_df['duration_seconds'].max():.2f} seconds")
+        print(f"Std deviation: {results_df['duration_seconds'].std():.2f} seconds")
+        
+        # Wall-clock time and speedup
+        speedup = results_df['duration_seconds'].sum() / wall_clock_time if wall_clock_time > 0 else 0
+        
+        print(f"\nWall-clock time: {wall_clock_time:.2f} seconds")
+        print(f"Parallel speedup factor: {speedup:.2f}x")
+        print(f"Parallel efficiency: {(speedup / len(results) * 100):.1f}%")
+        
+        print(f"\nBest parameters: {results_df.iloc[0]['params']}")
+        print(f"Best validation MSE: {results_df.iloc[0]['val_mse']:.6f}")
+        
+        # Save results
+        self._save_results(results_df, wall_clock_time, speedup)
+    
+    def _save_results(self, results_df, wall_clock_time, speedup):
+        """Save results to files."""
+        # Save results CSV
+        results_csv = f"{self.output_dir}/all_results.csv"
+        results_df.to_csv(results_csv, index=False)
+        print(f"\nResults saved to {results_csv}")
+        
+        # Save timing statistics
+        timing_stats = {
+            'total_jobs': len(results_df),
+            'total_training_time_seconds': float(results_df['duration_seconds'].sum()),
+            'average_training_time_seconds': float(results_df['duration_seconds'].mean()),
+            'median_training_time_seconds': float(results_df['duration_seconds'].median()),
+            'min_training_time_seconds': float(results_df['duration_seconds'].min()),
+            'max_training_time_seconds': float(results_df['duration_seconds'].max()),
+            'std_training_time_seconds': float(results_df['duration_seconds'].std()),
+            'wall_clock_time_seconds': float(wall_clock_time),
+            'parallel_speedup_factor': float(speedup),
+            'parallel_efficiency_percent': float(speedup / len(results_df) * 100)
+        }
+        
+        timing_file = f"{self.output_dir}/timing_statistics.json"
+        with open(timing_file, 'w') as f:
+            json.dump(timing_stats, f, indent=2)
+        print(f"Timing statistics saved to {timing_file}")
+        
+        # Save best model
+        best_idx = results_df.iloc[0]['job_id']
+        best_model = self.models[best_idx]
+        
+        best_model_file = f"{self.output_dir}/best_model.pkl"
+        with open(best_model_file, 'wb') as f:
+            pickle.dump(best_model, f)
+        print(f"Best model saved to {best_model_file}")
+        
+        # For TensorFlow models, also save in native format
+        if self.model_type in ['lstm', 'mlp']:
+            try:
+                best_model_h5 = f"{self.output_dir}/best_model.h5"
+                best_model.save(best_model_h5)
+                print(f"Best model also saved in TensorFlow format to {best_model_h5}")
+            except Exception as e:
+                print(f"Could not save TensorFlow model in .h5 format: {e}")
+        
+        # Save all models with their configurations
+        print(f"\nSaving all trained models...")
+        for i, (result, model) in enumerate(zip(results_df.to_dict('records'), self.models)):
+            model_file = f"{self.output_dir}/models/model_{result['job_id']}.pkl"
+            with open(model_file, 'wb') as f:
+                pickle.dump(model, f)
+            
+            # Save configuration with model
+            config_file = f"{self.output_dir}/models/model_{result['job_id']}_config.json"
+            with open(config_file, 'w') as f:
+                json.dump({
+                    'job_id': result['job_id'],
+                    'params': result['params'],
+                    'val_mse': result['val_mse'],
+                    'test_mse': result['test_mse'],
+                    'val_r2': result['val_r2'],
+                    'test_r2': result['test_r2']
+                }, f, indent=2)
+        
+        print(f"All {len(self.models)} models saved to {self.output_dir}/models/")
+        
+        # Save best parameters
+        best_params_file = f"{self.output_dir}/best_params.json"
+        with open(best_params_file, 'w') as f:
+            json.dump(results_df.iloc[0]['params'], f, indent=2)
+        print(f"Best parameters saved to {best_params_file}")
+
 def main():
     parser = argparse.ArgumentParser(
         description='Python Native Parallel Hyperparameter Tuning'
