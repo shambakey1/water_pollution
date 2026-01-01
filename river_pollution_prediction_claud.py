@@ -1009,7 +1009,7 @@ print(f"\n{'='*80}")
 print("PIPELINE EXECUTION COMPLETE")
 print(f"{'='*80}\n")
 
-print("📊 Summary:")
+print("Summary:")
 print(f"   • Input Variable: '{input_col}'")
 print(f"   • Target Variables: {len(target_cols)}")
 print(f"   • Training Samples: {X_train_final.shape[0]:,}")
