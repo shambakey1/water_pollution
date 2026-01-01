@@ -215,7 +215,7 @@ def exploratory_analysis(df_clean, target_cols, input_col):
     # ===========================================
     # 2. BOX PLOTS
     # ===========================================
-    print("📦 Generating Box Plots...")
+    print("Generating Box Plots...")
     n_cols = min(4, n_targets)
     n_rows = (n_targets + n_cols - 1) // n_cols
     
@@ -244,7 +244,7 @@ def exploratory_analysis(df_clean, target_cols, input_col):
     # ===========================================
     # 3. HISTOGRAMS WITH KDE
     # ===========================================
-    print("📊 Generating Histograms with KDE...")
+    print("Generating Histograms with KDE...")
     fig, axes = plt.subplots(n_rows, n_cols, figsize=(4*n_cols, 3*n_rows))
     if n_targets == 1:
         axes = [axes]
@@ -288,7 +288,7 @@ def exploratory_analysis(df_clean, target_cols, input_col):
     # ===========================================
     # 4. CORRELATION MATRIX
     # ===========================================
-    print("🔗 Generating Correlation Matrix...")
+    print("Generating Correlation Matrix...")
     corr_matrix = df_clean.corr()
     
     # Determine figure size
@@ -324,7 +324,7 @@ def exploratory_analysis(df_clean, target_cols, input_col):
     # ===========================================
     # 5. STATISTICAL SUMMARY TABLE
     # ===========================================
-    print("📋 Generating Statistical Summary Table...")
+    print("Generating Statistical Summary Table...")
     stats = df_clean[target_cols].describe().T
     stats['Q1'] = df_clean[target_cols].quantile(0.25)
     stats['Q3'] = df_clean[target_cols].quantile(0.75)
